@@ -71,7 +71,7 @@ def dictToXMLTree(dict):
 
 if __name__ == "__main__":
     signal.signal(signal.SIGINT, killme)
-
+    #TODO:Upgrade to argparse
     parser = optparse.OptionParser("usage: %prog [options]")
     parser.add_option("-k", "--key", dest = "api_key", type = "string", metavar="KEY", help = "Shodan API Key.")
     parser.add_option("-o", "--output", dest = "ofname", type = "string", metavar="FILE", help = "Write output to FILE.")
@@ -80,6 +80,7 @@ if __name__ == "__main__":
     parser.add_option("-e", "--exploit", dest = "exploit", type = "string", metavar="STRING", help = "String used to query for exploits.")
     parser.add_option("-x", "--xml", dest = "xml_file", type = "string", metavar="FILE", help = "Name of XML file to import and perform operations on locally.")
     parser.add_option("-v", "--verbose", action="store_true", dest="verbose", help = "Verbose mode.")
+    #TODO:Maybe a merge XMLs feature?
 
     (options, args) = parser.parse_args()
     
@@ -111,6 +112,7 @@ if __name__ == "__main__":
     if options.xml_file and options.xml_file != "":
         tree = ET.parse(xml_file)
     
+    #TODO:Define a unified XML structure
     out_tree = ET.ElementTree(ET.Element("shodan"))
     out_root = tree.getroot()
     
@@ -125,4 +127,4 @@ if __name__ == "__main__":
         findExploits(options.exploit)
     
     fname = formatFilename(options.ofname)
-    exportResults(tree,fname)
+    exportResults(out_tree,fname)
