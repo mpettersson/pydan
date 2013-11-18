@@ -3,36 +3,24 @@ import signal
 from shodan import WebAPI
 import xml.etree.ElementTree as ET
 
-SHODAN_API_KEY = ":)"
-
 #exit handler for signals.
 def killme(signum = 0, frame = 0):
     os.kill(os.getpid(), 9)
 
+def query(query, local=False):
+    if local:
+        #TODO: Locally query XML data
+    else:
+        print "Searching Shodan...",
+        try:
+            results = api.search(query)
+        except Exception, e:
+            print "Failed! (Error: %s)" % e
+        
+        print "Success!"
+        dictToXMLTree(results)
 
-api = WebAPI(SHODAN_API_KEY)
-
-def queryShodan():
-    while True:
-        query = raw_input("Please enter your query: ")
-        if query != "":
-            break
-    
-    print "Searching Shodan...",
-    try:
-        results = api.search(query)
-    except Exception, e:
-        print "Failed! (Error: %s)" % e
-    
-    print "Success!"
-    dictToXMLTree(results)
-
-def lookupHost():
-    while True:
-        ip = raw_input("Please enter an IP: ")
-        if ip != "":
-            break
-    
+def lookupHost(ip):
     print "Looking up host on Shodan...",
     try:
         host = api.host(ip)
@@ -53,13 +41,9 @@ def lookupHost():
                 Banner: %s
 
         """ % (item['port'], item['banner'])
+    #TODO:Merge results into XML tree
 
-def findExploits():
-    while True:
-        query = raw_input("Please enter your query: ")
-        if query != "":
-            break
-    
+def findExploits(query):
     print "Searching for exploits...",
     try:
         exploits = api.exploits.search(query)
@@ -67,17 +51,7 @@ def findExploits():
         print "Failed! (Error: %s)" % e
     
     print "Success!"
-    return exploits
-
-def exitProgram():
-    while True:
-        ans = raw_input("Are you sure you want to exit [Y/n]? ")
-        ans = ans.lower()
-        
-        if ans == "y" or ans == "":
-            exit(0)
-        if ans == "n":
-            return
+    #TODO:Merge results into XML tree
 
 def formatFilename(fname):
     valid_chars = "-_.() %s%s" % (string.ascii_letters, string.digits)
@@ -87,27 +61,44 @@ def formatFilename(fname):
         filename += ".xml"
     return filename
 
-def exportResults(tree):
-    while True:
-        fname = raw_input("Please enter a file name: ")
-        if fname != "":
-            break
-    fname = formatFilename(fname)
+def exportResults(tree, fname):
     tree.write(fname)
 
 def dictToXMLTree(dict):
-    global root
+    global out_root
     for host in dict['matches']:
-        root.append(ET.Element("host",host))
+        out_root.append(ET.Element("host",host))
 
 if __name__ == "__main__":
     signal.signal(signal.SIGINT, killme)
 
     parser = optparse.OptionParser("usage: %prog [options]")
-    parser.add_option("-x", "--xml", dest = "xml_file", type = "string", help = "Name of XML file to import.")
+    parser.add_option("-k", "--key", dest = "api_key", type = "string", metavar="KEY", help = "Shodan API Key.")
+    parser.add_option("-o", "--output", dest = "ofname", type = "string", metavar="FILE", help = "Write output to FILE.")
+    parser.add_option("-q", "--query", dest = "query", type = "string", metavar="STRING", help = "String used to query Shodan.")
+    parser.add_option("--host", dest = "host", type = "string", metavar="IP", help = "IP of host to lookup.")
+    parser.add_option("-e", "--exploit", dest = "exploit", type = "string", metavar="STRING", help = "String used to query for exploits.")
+    parser.add_option("-x", "--xml", dest = "xml_file", type = "string", metavar="FILE", help = "Name of XML file to import and perform operations on locally.")
     parser.add_option("-v", "--verbose", action="store_true", dest="verbose", help = "Verbose mode.")
 
     (options, args) = parser.parse_args()
+    
+    if not options.ofname:
+        parser.error("Output file not specified.")
+        parser.print_help()
+    
+    if not (options.query or options.host or options.exploit):
+        parser.error("Not enough arguements given.")
+        parser.print_help()
+    
+    if (options.host or options.exploit) and (not options.api_key or options.xml_file):
+        parser.error("Exploit/Host lookups aren't locally supported and require a Shodan API Key.")
+    
+    if not options.xml_file and not options.api_key:
+        parser.error("Shodan API key required to perform queries.")
+    
+    if options.api_key:
+        api = WebAPI(options.api_key)
 
     if options.verbose:
         def verboseprint(*args):
@@ -119,27 +110,19 @@ if __name__ == "__main__":
     
     if options.xml_file and options.xml_file != "":
         tree = ET.parse(xml_file)
-    else:
-        tree = ET.ElementTree(ET.Element("shodan"))
-    root = tree.getroot()
     
-    while True:
-        print """
-        1) Query Shodan
-        2) Lookup information about a host on Shodan
-        3) Search for exploits
-        4) Export results
-        5) Quit
-        """
-        choice = raw_input("What would you like to do? ")
-        
-        if choice == "1":
-            queryShodan()
-        elif choice == "2":
-            lookupHost()
-        elif choice == "3":
-            findExploits()
-        elif choice == "4":
-            exportResults()
-        elif choice == "5":
-            exitProgram()
+    out_tree = ET.ElementTree(ET.Element("shodan"))
+    out_root = tree.getroot()
+    
+    if options.query:
+        if options.xml_file:
+            query(options.query,True)
+        else:
+            query(options.query)
+    if options.host:
+        lookupHost(options.host)
+    if options.exploit:
+        findExploits(options.exploit)
+    
+    fname = formatFilename(options.ofname)
+    exportResults(tree,fname)
