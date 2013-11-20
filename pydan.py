@@ -1,7 +1,9 @@
-import optparse
+import argparse
 import signal
 from shodan import WebAPI
 import xml.etree.ElementTree as ET
+
+#TODO: Predefined queries?
 
 #exit handler for signals.
 def killme(signum = 0, frame = 0):
@@ -9,7 +11,7 @@ def killme(signum = 0, frame = 0):
 
 def query(query, local=False):
     if local:
-        #TODO: Locally query XML data
+        pass#TODO: Locally query XML data
     else:
         print "Searching Shodan...",
         try:
@@ -71,37 +73,36 @@ def dictToXMLTree(dict):
 
 if __name__ == "__main__":
     signal.signal(signal.SIGINT, killme)
-    #TODO:Upgrade to argparse
-    parser = optparse.OptionParser("usage: %prog [options]")
-    parser.add_option("-k", "--key", dest = "api_key", type = "string", metavar="KEY", help = "Shodan API Key.")
-    parser.add_option("-o", "--output", dest = "ofname", type = "string", metavar="FILE", help = "Write output to FILE.")
-    parser.add_option("-q", "--query", dest = "query", type = "string", metavar="STRING", help = "String used to query Shodan.")
-    parser.add_option("--host", dest = "host", type = "string", metavar="IP", help = "IP of host to lookup.")
-    parser.add_option("-e", "--exploit", dest = "exploit", type = "string", metavar="STRING", help = "String used to query for exploits.")
-    parser.add_option("-x", "--xml", dest = "xml_file", type = "string", metavar="FILE", help = "Name of XML file to import and perform operations on locally.")
-    parser.add_option("-v", "--verbose", action="store_true", dest="verbose", help = "Verbose mode.")
+    
+    parser = argparse.ArgumentParser(description='pydan description')#TODO: describe pydan
+    parser.add_argument("-k", "--key", dest = "api_key", metavar="KEY", help = "Shodan API Key.")
+    parser.add_argument("-o", "--output", dest = "ofname", type = argparse.FileType('w'), metavar="FILE", help = "Write output to FILE.", required = True)
+    parser.add_argument("-x", "--xml", dest = "xml_file", type = argparse.FileType('r'), metavar="FILE", help = "Name of XML file to import and perform operations on locally.")
+    parser.add_argument("-v", "--verbose", action="store_true", dest="verbose", help = "Verbose mode.")
+    
+    #TODO:Mutually exclusive group? Or support multiple queries per run? (depends on unified XML format)
+    group = parser.add_argument_group('Actions')
+    group.add_argument("-q", "--query", dest = "query", metavar="STRING", help = "String used to query Shodan.")
+    group.add_argument("--host", dest = "host", metavar="IP", help = "IP of host to lookup.")
+    group.add_argument("-e", "--exploit", dest = "exploit", metavar="STRING", help = "String used to query for exploits.")
+    
     #TODO:Maybe a merge XMLs feature?
 
-    (options, args) = parser.parse_args()
+    args = parser.parse_args()
     
-    if not options.ofname:
-        parser.error("Output file not specified.")
-        parser.print_help()
-    
-    if not (options.query or options.host or options.exploit):
+    if not (args.query or args.host or args.exploit):
         parser.error("Not enough arguements given.")
-        parser.print_help()
     
-    if (options.host or options.exploit) and (not options.api_key or options.xml_file):
+    if (args.host or args.exploit) and (not args.api_key or args.xml_file):
         parser.error("Exploit/Host lookups aren't locally supported and require a Shodan API Key.")
     
-    if not options.xml_file and not options.api_key:
+    if not args.xml_file and not args.api_key:
         parser.error("Shodan API key required to perform queries.")
     
-    if options.api_key:
-        api = WebAPI(options.api_key)
+    if args.api_key:
+        api = WebAPI(args.api_key)
 
-    if options.verbose:
+    if args.verbose:
         def verboseprint(*args):
             for arg in args:
                print arg,
@@ -109,22 +110,22 @@ if __name__ == "__main__":
     else:
         verboseprint = lambda *a: None
     
-    if options.xml_file and options.xml_file != "":
+    if args.xml_file and args.xml_file != "":
         tree = ET.parse(xml_file)
     
     #TODO:Define a unified XML structure
     out_tree = ET.ElementTree(ET.Element("shodan"))
     out_root = tree.getroot()
     
-    if options.query:
-        if options.xml_file:
-            query(options.query,True)
+    if args.query:
+        if args.xml_file:
+            query(args.query,True)
         else:
-            query(options.query)
-    if options.host:
-        lookupHost(options.host)
-    if options.exploit:
-        findExploits(options.exploit)
+            query(args.query)
+    if args.host:
+        lookupHost(args.host)
+    if args.exploit:
+        findExploits(args.exploit)
     
-    fname = formatFilename(options.ofname)
+    fname = formatFilename(args.ofname)
     exportResults(out_tree,fname)
