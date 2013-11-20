@@ -35,19 +35,21 @@ def lookupHost(ip):
     
     print "Success!"
     
-    print """
+    verboseprint("""
         IP: %s
         Country: %s
         City: %s
-    """ % (host['ip'], host.get('country', None), host.get('city', None))
+    """ % (host['ip'], host.get('country', None), host.get('city', None)))
 
     for item in host['data']:
-        print """
+        verboseprint("""
                 Port: %s
                 Banner: %s
 
-        """ % (item['port'], item['banner'])
-    #TODO:Merge results into XML tree (needs unified XML format)
+        """ % (item['port'], item['banner']))
+    
+    global out_hosts
+    out_hosts.append(ET.Element("host",host))
 
 def findExploits(query):
     print "Searching for exploits...",
@@ -58,7 +60,10 @@ def findExploits(query):
         print "Failed! (Error: %s)" % e
     
     print "Success!"
-    #TODO:Merge results into XML tree (needs unified XML format)
+    
+    global out_exploits
+    for exploit in dict['matches']: #TODO:verify format of results is same as a hosts query
+        out_exploits.append(ET.Element("exploit",exploit))
 
 def formatFilename(fname):
     valid_chars = "-_.() %s%s" % (string.ascii_letters, string.digits)
@@ -70,14 +75,15 @@ def formatFilename(fname):
     return filename
 
 def exportResults(tree, fname):
-    tree.write(fname)
+    tree.write(fname, xml_declaration=True)
     print "Wrote output to \"",fname,"\" successfullly!"
 
+#TODO:generalize function to work for hosts and exploits
 def dictToXMLTree(dict):
     verboseprint("importing query results to XML tree")
-    global out_root
+    global out_hosts
     for host in dict['matches']:
-        out_root.append(ET.Element("host",host))
+        out_hosts.append(ET.Element("host",host))
 
 if __name__ == "__main__":
     signal.signal(signal.SIGINT, killme)
@@ -90,7 +96,7 @@ if __name__ == "__main__":
     #TODO:Option for "batch" file of queries?
     #TODO:Make '-k' and '-x' mutually exclusive? Or combine results?
     
-    #TODO:Mutually exclusive group? Or support multiple queries per run? (depends on unified XML format)
+    #TODO:Mutually exclusive group? Or support multiple queries per run?
     group = parser.add_argument_group('Actions')
     group.add_argument("-q", "--query", dest = "query", metavar="STRING", help = "String used to query Shodan.")
     group.add_argument("--host", dest = "host", metavar="IP", help = "IP of host to lookup.")
@@ -128,9 +134,11 @@ if __name__ == "__main__":
         tree = ET.parse(xml_file)
         verboseprint("parsed xml file successfully")
     
-    #TODO:Define a unified XML structure
-    out_tree = ET.ElementTree(ET.Element("shodan"))
-    out_root = tree.getroot()
+    out_root = ET.Element("pydan")
+    out_tree = ET.ElementTree(out_root)
+    out_hosts = ET.SubElement(out_root,"hosts")
+    out_exploits = ET.SubElement(out_root,"exploits")
+    
     verboseprint("initialized empty xml tree for output")
     
     if args.query:
