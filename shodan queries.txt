@@ -1,0 +1,64 @@
+Smart Meter:
+
+port:23 "Meter ION"
+EIG Embedded Web Server
+
+Scada:
+
+"200 OK" i.LON
+port:5060 Nortel
+port:161 SLC5
+Bacnet
+Addpac
+Modicon + M340 + CPU
+Powerlink
+HMS + Anybus-S + WebServer
+NovaTech + HTTPD
+Modbus + Bridge
+Cimetrics + Eplus + Web + Server
+A850 + Telemetry + Gateway
+CitectSCADA
+i.LON
+EIG + Embedded + Web + Server
+TAC/Xenta
+WAGO
+ConnectUPS
+MOXA
+Moscad
+Telemecanique
+/gc/flash.php
+HMI_Panel port:23
+/BroadWeb/
+ioLogik
+Carel PlantVisor
+SoftPLC
+EnergyICT
+RTU560
+eiPortal
+RTS+Scada
+Simatic + HMI
+Simatic + S7
+SIMATIC + NET
+CIMPLICITY
+webSCADA-Modbus
+ModbusGW
+Allen-Bradley
+Reliance + 4 + Control + Server
+ABB + Webmodule
+Niagra + Web + Server
+RuggedCom
+AKCP
+honeywell BNA
+wince Content-Length: 12581
+HMI, XP277
+serverview
+title:adcon
+enteliTOUCH
+Portal0000
+Z-World Rabbit 200 OK
+"Server: VTS" -IIS -Apache -nginx 401 -500 -Boa -Sitewatch -Apple -httpd -cpsrvd -Ubicom -DCS-6620
+title:alarm
+Schleifenbauer
+Jetty 3.1.8 (Windows 2000 5.0 x86) "200 OK"
+title:phasefale
+"Model name : 5232-N" port:23
