@@ -5,6 +5,7 @@ from shodan import WebAPI
 import xml.etree.ElementTree as ET
 
 #TODO: Predefined queries?
+#TODO: Logic to correlate exploits to hosts/devices?
 
 #exit handler for signals.
 def killme(signum = 0, frame = 0):
@@ -96,11 +97,11 @@ if __name__ == "__main__":
     #TODO:Option for "batch" file of queries?
     #TODO:Make '-k' and '-x' mutually exclusive? Or combine results?
     
-    #TODO:Mutually exclusive group? Or support multiple queries per run?
-    group = parser.add_argument_group('Actions')
-    group.add_argument("-q", "--query", dest = "query", metavar="STRING", help = "String used to query Shodan.")
-    group.add_argument("--host", dest = "host", metavar="IP", help = "IP of host to lookup.")
-    group.add_argument("-e", "--exploit", dest = "exploit", metavar="STRING", help = "String used to query for exploits.")
+    group = parser.add_argument_group(title='Actions (mutually exclusive)')
+    mutex_group = group.add_mutually_exclusive_group()
+    mutex_group.add_argument("-q", "--query", dest = "query", metavar="STRING", help = "String used to query Shodan.")
+    mutex_group.add_argument("--host", dest = "host", metavar="IP", help = "IP of host to lookup.")
+    mutex_group.add_argument("-e", "--exploit", dest = "exploit", metavar="STRING", help = "String used to query for exploits.")
     
     #TODO:Maybe a merge XMLs feature?
 
@@ -125,20 +126,19 @@ if __name__ == "__main__":
         parser.error("Shodan API key required to perform queries.")
     
     if args.api_key:
-        verboseprint("api key detected")
+        verboseprint("key detected")
         api = WebAPI(args.api_key)
         verboseprint("webapi object created successfully")
     
     if args.xml_file and args.xml_file != "":
-        verboseprint("input XML file detected")
+        verboseprint("input xml file detected")
         tree = ET.parse(xml_file)
         verboseprint("parsed xml file successfully")
     
     out_root = ET.Element("pydan")
     out_tree = ET.ElementTree(out_root)
     out_hosts = ET.SubElement(out_root,"hosts")
-    out_exploits = ET.SubElement(out_root,"exploits")
-    
+    out_exploits = ET.SubElement(out_root,"exploits")    
     verboseprint("initialized empty xml tree for output")
     
     if args.query:
