@@ -4,6 +4,18 @@ import argparse
 from shodan import WebAPI
 import xml.etree.ElementTree as ET
 
+class CustomArgumentParser(argparse.ArgumentParser):
+    def __init__(self, *args, **kwargs):
+        super(CustomArgumentParser, self).__init__(*args, **kwargs)
+
+    def convert_arg_line_to_args(self, line):
+        for arg in line.split():
+            if not arg.strip():
+                continue
+            if arg[0] == '#':
+                break
+            yield arg
+
 #TODO: Predefined queries?
 #TODO: Logic to correlate exploits to hosts/devices?
 
@@ -89,19 +101,31 @@ def dictToXMLTree(dict):
 if __name__ == "__main__":
     signal.signal(signal.SIGINT, killme)
     
-    parser = argparse.ArgumentParser(description='pydan description')#TODO: describe pydan
+    parser = CustomArgumentParser(
+    formatter_class=argparse.RawDescriptionHelpFormatter,
+    fromfile_prefix_chars='@',
+    description=\
+'''
+pydan is a tool that provides a way to easily use the Shodan API (using your 
+own API key) and try to perform some analysis to find interesting and possibly 
+vulnerable devices.
+
+  @FILE\t\t\tname of file to read line seperated arguments from
+''')
+
     parser.add_argument("-k", "--key", dest = "api_key", metavar="KEY", help = "Shodan API Key.")
-    parser.add_argument("-o", "--output", dest = "ofname", type = argparse.FileType('w'), metavar="FILE", help = "Write output to FILE.", required = True)
-    parser.add_argument("-x", "--xml", dest = "xml_file", type = argparse.FileType('r'), metavar="FILE", help = "Name of XML file to import and perform operations on locally.")
-    parser.add_argument("-v", "--verbose", action="store_true", dest="verbose", help = "Verbose mode.")
+    parser.add_argument("-o", "--output", dest = "ofname", type = argparse.FileType('w'), metavar="FILE", help = "write output to FILE", required = True)
+    parser.add_argument("-x", "--xml", dest = "xml_file", type = argparse.FileType('r'), metavar="FILE", help = "name of XML file to import and perform operations on locally")
+    parser.add_argument("-v", "--verbose", action="store_true", dest="verbose", help = "verbose mode")
+    
     #TODO:Option for "batch" file of queries?
     #TODO:Make '-k' and '-x' mutually exclusive? Or combine results?
     
     group = parser.add_argument_group(title='Actions (mutually exclusive)')
-    mutex_group = group.add_mutually_exclusive_group()
-    mutex_group.add_argument("-q", "--query", dest = "query", metavar="STRING", help = "String used to query Shodan.")
-    mutex_group.add_argument("--host", dest = "host", metavar="IP", help = "IP of host to lookup.")
-    mutex_group.add_argument("-e", "--exploit", dest = "exploit", metavar="STRING", help = "String used to query for exploits.")
+    actions = group.add_mutually_exclusive_group(required=True)
+    actions.add_argument("-q", "--query", dest = "query", metavar="STRING", help = "string used to query Shodan")
+    actions.add_argument("--host", dest = "host", metavar="IP", help = "ip of host to lookup")
+    actions.add_argument("-e", "--exploit", dest = "exploit", metavar="STRING", help = "string used to query for exploits")
     
     #TODO:Maybe a merge XMLs feature?
 
