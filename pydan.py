@@ -25,7 +25,7 @@ class CustomArgumentParser(argparse.ArgumentParser):
 def killme(signum = 0, frame = 0):
     os.kill(os.getpid(), 9)
 
-def query(query, local=False):
+def query(out_tree, query, local=False):
     if local:
         verboseprint("performing a local query (\"",query,"\")")
         
@@ -55,7 +55,6 @@ def query(query, local=False):
         for word in query.strip().split():
             phrases.append(word)
         
-        global out_tree
         out_imported_query_hosts = out_tree.find("./imported_query/hosts")
         out_query = ET.SubElement(out_tree,"query",{"query":query,"type":"local"})
         out_hosts = ET.SubElement(out_query,"hosts")
@@ -64,6 +63,8 @@ def query(query, local=False):
             if any(word in host.attrib.itervalues() for word in filter):
                 if any(phrase in host[0].text for phrase in phrases):
                     out_hosts.append(ET.Element("host",host))
+        
+        return out_query
     else:
         print "Searching Shodan...",
         try:
@@ -75,13 +76,14 @@ def query(query, local=False):
         print "Success!"
         
         verboseprint("importing query results to XML tree")
-        global out_tree
         out_query = ET.SubElement(out_tree,"query",{"query":query,"type":"api"})
         out_hosts = ET.SubElement(out_query,"hosts")#add metdata to attrib?
         for host in results["matches"]:
             out_hosts.append(ET.Element("host",host))
+        
+        return out_query
 
-def lookupHost(ip):
+def lookupHost(out_tree, ip):
     print "Looking up host on Shodan...",
     try:
         verboseprint("sumitting host (",ip,") query to Shodan via webapi")
@@ -105,12 +107,13 @@ def lookupHost(ip):
         """ % (item["port"], item["banner"]))
     
     verboseprint("importing host info to XML tree")
-    global out_tree
     out_query = ET.SubElement(out_tree,"host_query",{"query":ip})
-    out_host = ET.SubElement(out_query,"host"})
+    out_host = ET.SubElement(out_query,"host")
     out_host.append(ET.Element("host",host))
+    
+    return out_query
 
-def findExploits(query):
+def findExploits(out_tree, query):
     print "Searching for exploits...",
     try:
         verboseprint("submitting exploit query to Shodan via webapi (\"",query,"\")")
@@ -121,11 +124,12 @@ def findExploits(query):
     print "Success!"
     
     verboseprint("importing query results to XML tree")
-    global out_tree
     out_query = ET.SubElement(out_tree,"exploit_query",{"query":query})
-    out_exploits = ET.SubElement(out_query,"exploits"})
+    out_exploits = ET.SubElement(out_query,"exploits")
     for exploit in exploits["matches"]:
         out_exploits.append(ET.Element("exploit",exploit))
+    
+    return out_query
 
 def formatFilename(fname):
     valid_chars = "-_.() %s%s" % (string.ascii_letters, string.digits)
@@ -144,9 +148,7 @@ def fingerprint(banner):
     
     return matches
 
-def enumServers():
-    global out_tree
-    out_query = out_tree.find('./query')
+def enumServers(out_query):
     out_query_hosts = out_query.find('./hosts')
     regex_server = re.compile('Server: (.+)')
     serverSummary = defaultdict(list)
@@ -158,10 +160,26 @@ def enumServers():
     
     out_servers = ET.SubElement(out_query,"servers")
     for server_type, hosts in serverSummary.iteritems():
-        server = ET.Element(server_type)
+        server = ET.SubElement(out_servers,"server_type",{"name":server_type})
+        server_hosts = ET.SubElement(server,"hosts")
         for host in hosts:
-            server.append("host",host)
-        out_servers.append(server)
+            server_hosts.append("host",host)
+    
+    return out_servers
+
+def lookupServerExploits(out_servers):
+    for server in out_servers:
+        try:
+            verboseprint("submitting exploit query to Shodan via webapi (\"",query,"\")")
+            exploits = api.exploitdb.search(server.attrib["name"])
+        except Exception, e:
+            print "Failed! (Error: %s)" % e
+        if exploits and not exploits["error"]:
+            server_exploits = ET.SubElement(server,"exploits",{"query":exploits["query"],
+                                                               "source":exploits["source"],
+                                                               "total":exploits["total"]})
+            for exploit in exploits["matches"]:
+                server_exploits.append("exploit",exploit)
 
 def importXML(tree, out_tree):
     verboseprint("importing xml file")
@@ -182,7 +200,8 @@ if __name__ == "__main__":
     
     parser = CustomArgumentParser(
     formatter_class=argparse.RawDescriptionHelpFormatter,
-    fromfile_prefix_chars='@',
+    fromfile_prefix_chars="@",
+    usage="%(prog)s [OPTION]... (-q STRING | --host IP | -e STRING) -o FILE",
     description=\
 '''
 pydan is a tool that provides a way to easily use the Shodan API (using your 
@@ -196,6 +215,7 @@ vulnerable devices.
     parser.add_argument("-k", "--key", dest = "api_key", metavar="KEY", help = "Shodan API Key.")
     parser.add_argument("-o", "--output", dest = "ofname", type = argparse.FileType('w'), metavar="FILE", help = "write output to FILE", required = True)
     parser.add_argument("-x", "--xml", dest = "xml_file", type = argparse.FileType('r'), metavar="FILE", help = "name of XML file to import and perform operations on locally")
+    parser.add_argument("--xlookup", action="store_true", dest="xlookup", help = "attempt to find exploits on the types of devices found")
     parser.add_argument("-v", "--verbose", action="store_true", dest="verbose", help = "verbose mode")
     
     #TODO:Option for "batch" file of queries?
@@ -247,13 +267,16 @@ vulnerable devices.
     
     if args.query:
         if args.xml_file:
-            query(args.query,True)
+            out_query = query(out_tree, args.query, True)
         else:
-            query(args.query)
+            out_query = query(out_tree, args.query)
+        out_servers = enumServers(out_query)
+        if args.xlookup:
+            out_server_exploits = lookupServerExploits(out_servers)
     if args.host:
-        lookupHost(args.host)
+        out_query = lookupHost(out_tree, args.host)
     if args.exploit:
-        findExploits(args.exploit)
+        out_query = findExploits(out_tree, args.exploit)
     
     fname = formatFilename(args.ofname)
     exportResults(out_tree,fname)
