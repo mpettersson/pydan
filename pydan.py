@@ -28,7 +28,42 @@ def killme(signum = 0, frame = 0):
 def query(query, local=False):
     if local:
         verboseprint("performing a local query (\"",query,"\")")
-        #TODO: Locally query XML data
+        
+        filters = re.findall("\w:\w",query)
+        if filters:
+            filter = []
+            for i in filters:
+                query.replace(i, "")
+                parts = i.split(":")
+                filter.append(parts[0]+"=\""+parts[1]+"\"")
+            #ElementTree doesn't have full XPath support
+            #(left in below code in case of upgrade to lxml)
+            # filter = "["
+            # for i in filters:
+                # parts = i.split(":")
+                # filter += "@"+parts[0]+"='"+parts[1]+"' or "
+            # filter = filter[:-4]+"]"
+        
+        query = query.strip()
+        phrases = []
+        exacts = re.findall('".+"',q)
+        if exacts:
+            for i in exacts:
+                query.replace(i, "")
+                phrases.append(i.replace('"',""))
+        
+        for word in query.strip().split():
+            phrases.append(word)
+        
+        global out_tree
+        out_imported_query_hosts = out_tree.find("./imported_query/hosts")
+        out_query = ET.SubElement(out_tree,"query",{"query":query,"type":"local"})
+        out_hosts = ET.SubElement(out_query,"hosts")
+        
+        for host in out_imported_query_hosts:
+            if any(word in host.attrib.itervalues() for word in filter):
+                if any(phrase in host[0].text for phrase in phrases):
+                    out_hosts.append(ET.Element("host",host))
     else:
         print "Searching Shodan...",
         try:
@@ -41,9 +76,9 @@ def query(query, local=False):
         
         verboseprint("importing query results to XML tree")
         global out_tree
-        out_query = ET.SubElement(out_root,"query",{'query_string':query})
+        out_query = ET.SubElement(out_tree,"query",{"query":query,"type":"api"})
         out_hosts = ET.SubElement(out_query,"hosts")#add metdata to attrib?
-        for host in results['matches']:
+        for host in results["matches"]:
             out_hosts.append(ET.Element("host",host))
 
 def lookupHost(ip):
@@ -60,18 +95,18 @@ def lookupHost(ip):
         IP: %s
         Country: %s
         City: %s
-    """ % (host['ip'], host.get('country', None), host.get('city', None)))
+    """ % (host['ip'], host.get("country", None), host.get("city", None)))
 
     for item in host['data']:
         verboseprint("""
                 Port: %s
                 Banner: %s
 
-        """ % (item['port'], item['banner']))
+        """ % (item["port"], item["banner"]))
     
     verboseprint("importing host info to XML tree")
     global out_tree
-    out_query = ET.SubElement(out_root,"host_query",{'query_ip':ip})
+    out_query = ET.SubElement(out_tree,"host_query",{"query":ip})
     out_host = ET.SubElement(out_query,"host"})
     out_host.append(ET.Element("host",host))
 
@@ -87,15 +122,15 @@ def findExploits(query):
     
     verboseprint("importing query results to XML tree")
     global out_tree
-    out_query = ET.SubElement(out_root,"exploit_query",{'query_string':query})
+    out_query = ET.SubElement(out_tree,"exploit_query",{"query":query})
     out_exploits = ET.SubElement(out_query,"exploits"})
-    for exploit in exploits['matches']:
+    for exploit in exploits["matches"]:
         out_exploits.append(ET.Element("exploit",exploit))
 
 def formatFilename(fname):
     valid_chars = "-_.() %s%s" % (string.ascii_letters, string.digits)
-    filename = ''.join(c for c in fname if c in valid_chars)
-    filename = filename.replace(' ','_')
+    filename = "".join(c for c in fname if c in valid_chars)
+    filename = filename.replace(" ","_")
     if not filename.endswith(".xml"):
         filename += ".xml"
     verboseprint("formatted output filename \"",fname,"\" to \"",filename,"\"")
@@ -131,8 +166,8 @@ def enumServers():
 def importXML(tree, out_tree):
     verboseprint("importing xml file")
     root = tree.getroot()
-    out_query = ET.SubElement(out_tree,"query",{'query_string':root[0].attrib['query']})
-    out_hosts = ET.SubElement(out_query,"hosts")#add metdata to attrib?
+    out_query = ET.SubElement(out_tree,"imported_query",root[0].attrib)
+    out_hosts = ET.SubElement(out_query,"hosts")
     
     for i in xrange(1,len(root)):
         out_hosts.append(ET.Element("host",root[i]))
