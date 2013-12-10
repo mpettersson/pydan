@@ -1,8 +1,10 @@
 import os
+import re
 import signal
 import argparse
 from shodan import WebAPI
 import xml.etree.ElementTree as ET
+from collections import defaultdict
 
 class CustomArgumentParser(argparse.ArgumentParser):
     def __init__(self, *args, **kwargs):
@@ -36,7 +38,13 @@ def query(query, local=False):
             print "Failed! (Error: %s)" % e
         
         print "Success!"
-        dictToXMLTree(results)
+        
+        verboseprint("importing query results to XML tree")
+        global out_tree
+        out_query = ET.SubElement(out_root,"query",{'query_string':query})
+        out_hosts = ET.SubElement(out_query,"hosts")#add metdata to attrib?
+        for host in results['matches']:
+            out_hosts.append(ET.Element("host",host))
 
 def lookupHost(ip):
     print "Looking up host on Shodan...",
@@ -61,21 +69,27 @@ def lookupHost(ip):
 
         """ % (item['port'], item['banner']))
     
-    global out_hosts
-    out_hosts.append(ET.Element("host",host))
+    verboseprint("importing host info to XML tree")
+    global out_tree
+    out_query = ET.SubElement(out_root,"host_query",{'query_ip':ip})
+    out_host = ET.SubElement(out_query,"host"})
+    out_host.append(ET.Element("host",host))
 
 def findExploits(query):
     print "Searching for exploits...",
     try:
         verboseprint("submitting exploit query to Shodan via webapi (\"",query,"\")")
-        exploits = api.exploits.search(query)
+        exploits = api.exploitdb.search(query)
     except Exception, e:
         print "Failed! (Error: %s)" % e
     
     print "Success!"
     
-    global out_exploits
-    for exploit in dict['matches']: #TODO:verify format of results is same as a hosts query
+    verboseprint("importing query results to XML tree")
+    global out_tree
+    out_query = ET.SubElement(out_root,"exploit_query",{'query_string':query})
+    out_exploits = ET.SubElement(out_query,"exploits"})
+    for exploit in exploits['matches']:
         out_exploits.append(ET.Element("exploit",exploit))
 
 def formatFilename(fname):
@@ -87,16 +101,46 @@ def formatFilename(fname):
     verboseprint("formatted output filename \"",fname,"\" to \"",filename,"\"")
     return filename
 
+def fingerprint(banner):
+    try:
+        matches = api.fingerprint(banner)
+    except Exception, e:
+        print "Failed! (Error: %s)" % e
+    
+    return matches
+
+def enumServers():
+    global out_tree
+    out_query = out_tree.find('./query')
+    out_query_hosts = out_query.find('./hosts')
+    regex_server = re.compile('Server: (.+)')
+    serverSummary = defaultdict(list)
+    
+    for host in out_query_hosts:
+        match = regex_server.search(host[0].text)
+        if match:
+            serverSummary[match.group(1)].append(host)
+    
+    out_servers = ET.SubElement(out_query,"servers")
+    for server_type, hosts in serverSummary.iteritems():
+        server = ET.Element(server_type)
+        for host in hosts:
+            server.append("host",host)
+        out_servers.append(server)
+
+def importXML(tree, out_tree):
+    verboseprint("importing xml file")
+    root = tree.getroot()
+    out_query = ET.SubElement(out_tree,"query",{'query_string':root[0].attrib['query']})
+    out_hosts = ET.SubElement(out_query,"hosts")#add metdata to attrib?
+    
+    for i in xrange(1,len(root)):
+        out_hosts.append(ET.Element("host",root[i]))
+    verboseprint("imported xml file successfully")
+
 def exportResults(tree, fname):
     tree.write(fname, xml_declaration=True)
     print "Wrote output to \"",fname,"\" successfullly!"
-
-#TODO:generalize function to work for hosts and exploits
-def dictToXMLTree(dict):
-    verboseprint("importing query results to XML tree")
-    global out_hosts
-    for host in dict['matches']:
-        out_hosts.append(ET.Element("host",host))
 
 if __name__ == "__main__":
     signal.signal(signal.SIGINT, killme)
@@ -112,7 +156,8 @@ vulnerable devices.
 
   @FILE\t\t\tname of file to read line seperated arguments from
 ''')
-
+    #there has to be a better way to format this ^
+    #this is why i'm not a web developer
     parser.add_argument("-k", "--key", dest = "api_key", metavar="KEY", help = "Shodan API Key.")
     parser.add_argument("-o", "--output", dest = "ofname", type = argparse.FileType('w'), metavar="FILE", help = "write output to FILE", required = True)
     parser.add_argument("-x", "--xml", dest = "xml_file", type = argparse.FileType('r'), metavar="FILE", help = "name of XML file to import and perform operations on locally")
@@ -154,16 +199,16 @@ vulnerable devices.
         api = WebAPI(args.api_key)
         verboseprint("webapi object created successfully")
     
+    out_root = ET.Element("pydan")
+    out_tree = ET.ElementTree(out_root)   
+    verboseprint("initialized empty xml tree for output")
+    
     if args.xml_file and args.xml_file != "":
         verboseprint("input xml file detected")
         tree = ET.parse(xml_file)
         verboseprint("parsed xml file successfully")
-    
-    out_root = ET.Element("pydan")
-    out_tree = ET.ElementTree(out_root)
-    out_hosts = ET.SubElement(out_root,"hosts")
-    out_exploits = ET.SubElement(out_root,"exploits")    
-    verboseprint("initialized empty xml tree for output")
+        importXML(tree, out_tree)
+        del tree
     
     if args.query:
         if args.xml_file:
