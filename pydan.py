@@ -60,7 +60,8 @@ def query(out_tree, query, local=False):
         out_hosts = ET.SubElement(out_query,"hosts")
         
         for host in out_imported_query_hosts:
-            if any(word in host.attrib.itervalues() for word in filter):
+            attributes = list(key+"=\""+value+"\"" for (key,value) in host.attrib.items())
+            if any(word in attributes for word in filter):
                 if any(phrase in host[0].text for phrase in phrases):
                     out_hosts.append(ET.Element("host",host))
         
