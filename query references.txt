@@ -1,0 +1,75 @@
+// Query references
+//http://blog.xanda.org/2010/11/10/find-vulnerable-scada-systems-with-shodan/
+//http://www.scadaexposure.com/report/2013-11
+//https://www.owasp.org/images/4/48/ASDC12-Denial_of_Surface.pdf
+
+"200 OK" i.LON						#control network pumps, motors,valves
+port:5060 Nortel					#communications
+port:161 SLC5						#automation controllers
+Bacnet								#communications protocol for building automation and control networks
+Addpac								#GSM gateway
+Modicon + M340 + CPU				#plc for industrial process
+Powerlink							#industry facilities management
+HMS + Anybus-S + WebServer			#embedded communication module
+NovaTech + HTTPD					#industrial control system
+Modbus + Bridge						#connects modbus 
+Cimetrics + Eplus + Web + Server	#HVAC 	
+A850 + Telemetry + Gateway			#adcon monitoring network
+CitectSCADA							#HMI/Scada software package
+i.LON								#control network pumps,motors
+EIG + Embedded + Web + Server		#GaugeTech Scada
+TAC/Xenta							#universal input/digital output module
+WAGO								#automation technology components
+ConnectUPS							#remote monitoring industrial systems
+Moscad								#RTU 
+Telemecanique						#industrial automation controllers, sensors
+/gc/flash.php
+HMI_Panel port:23					#telnet access to hmi
+/BroadWeb/
+ioLogik								#moxa ethernet rtu controller
+Carel PlantVisor					#monitoring and telemaintenance software hvac
+SoftPLC								#automation controllers
+EnergyICT							#smart grid meter data management company
+RTU560								#process signal information
+eiPortal							#web based browser interface
+RTS+Scada							#scada remote connection
+Simatic + HMI						#human interface scada
+Simatic + S7						#scada systems
+SIMATIC + NET						#net communications processors/profibus controllers
+CIMPLICITY							#remote scada management						
+webSCADA-Modbus						#data collection
+ModbusGW
+Allen-Bradley						#automationa and control
+Reliance + 4 + Control + Server		#visualization and control of industrial processes
+ABB + Webmodule						#remote management
+Niagra + Web + Server
+
+//popular shodan queries
+
+RuggedCom 						#communications equipment exposed via telnet
+AKCP							#computer room monitoring, temperature monitoring equipment
+modicon							#programmable logic controller
+honeywell BNA					#building network adapter
+wince Content-Length: 12581		#webserver for Siemens HVAC system
+IPC@CHIP title:Start			#Solar panel web configuration
+Niagara 200						#HVAC controller
+country:nl iq3					#dutch climate controllers
+HMI, XP277						#simatic controller
+serverview						#Fujitsu-Siemens Remote Management Interface
+title:adcon						#telemetry gateway
+enteliTOUCH						#Delta controls, building automation system
+vxworks							#embedded OS
+niagara_audit -login			#building automation web
+Portal0000						#scada siemens s7
+Z-World Rabbit 200 OK			#portal to webfaced scada
+scada country:dk port:80		#dk building management
+"Server: VTS" -IIS -Apache -nginx 401 -500 -Boa -Sitewatch -Apple -httpd -cpsrvd -Ubicom -DCS-6620		#water filtration/treatment
+title:alarm						#alarm systems
+moxa							#industry device networking
+Schleifenbauer					#electric grid
+Jetty 3.1.8 (Windows 2000 5.0 x86) "200 OK"		#windfarms
+title:phasefale					#freezers, storage
+"Model name : 5232-N" port:23	#controllers
+schneider						#scada systems manuf.
+port:23 "Meter ION"				#smart meter
+EIG Embedded Web Server			#smart meter
