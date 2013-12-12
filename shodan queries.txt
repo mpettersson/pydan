@@ -1,10 +1,5 @@
-Smart Meter:
-
 port:23 "Meter ION"
 EIG Embedded Web Server
-
-Scada:
-
 "200 OK" i.LON
 port:5060 Nortel
 port:161 SLC5
