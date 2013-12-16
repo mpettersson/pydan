@@ -66,7 +66,7 @@ def query(out_tree, query, local=False):
             attributes = list(key+"=\""+value+"\"" for (key,value) in host.attrib.items())
             if any(word in attributes for word in filter):
                 if any(phrase in host[0].text for phrase in phrases):
-                    out_hosts.append(ET.Element("host",host))
+                    out_hosts.append(host)
         
         return out_query
     else:
@@ -81,9 +81,21 @@ def query(out_tree, query, local=False):
         
         verboseprint("importing query results to XML tree")
         out_query = ET.SubElement(out_root,"query",{"query":query,"type":"api"})
-        out_hosts = ET.SubElement(out_query,"hosts")#retain metdata to attrib?
+        out_hosts = ET.SubElement(out_query,"hosts")#retain query metdata to attrib?
         for host in results["matches"]:
-            out_hosts.append(ET.Element("host",host))
+            data = ET.Element("data")
+            data.text = host["data"]
+            del host["data"]
+            for attrib,value in host.items():
+                if not value:
+                    del host[attrib]
+                elif type(value) is list:
+                    host[attrib] = value[0] #needed b/c limitation in ET
+                else:
+                    host[attrib] = unicode(value)
+            h = ET.Element("host",host)
+            h.append(data)
+            out_hosts.append(h)
         
         return out_query
 
@@ -168,9 +180,11 @@ def enumServers(out_query):
     serverSummary = defaultdict(list)
     
     for host in out_query_hosts:
-        match = regex_server.search(host.get("data"))
+        match = regex_server.search(host[0].text)
         if match:
-            serverSummary[match.group(1)].append(host)
+            m = match.group(1).strip()
+            if m:
+                serverSummary[m].append(host)
     
     out_servers = ET.SubElement(out_query,"servers")
     for server_type, hosts in serverSummary.iteritems():
@@ -228,7 +242,7 @@ vulnerable devices.
     #there has to be a better way to format this ^
     #this is why i'm not a web developer
     parser.add_argument("-k", "--key", dest = "api_key", metavar="KEY", help = "Shodan API Key.")
-    parser.add_argument("-o", "--output", dest = "ofname", type = argparse.FileType('w'), metavar="FILE", help = "write output to FILE", required = True)
+    parser.add_argument("-o", "--output", dest = "ofname", metavar="FILE", help = "write output to FILE", required = True)
     parser.add_argument("-x", "--xml", dest = "xml_file", type = argparse.FileType('r'), metavar="FILE", help = "name of XML file to import and perform operations on locally")
     parser.add_argument("--fingerprint", action="store_true", dest="fingerprint", help = "(experimental) attempt to fingerprint devices based on their banner's")
     parser.add_argument("--xlookup", action="store_true", dest="xlookup", help = "attempt to find exploits on the types of devices found")
@@ -297,5 +311,5 @@ vulnerable devices.
     if args.exploit:
         out_query = findExploits(out_tree, args.exploit)
     
-    fname = formatFilename(args.ofname.name)
+    fname = formatFilename(args.ofname)
     exportResults(out_tree,fname)
