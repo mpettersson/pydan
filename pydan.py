@@ -70,14 +70,14 @@ def query(out_tree, query, local=False):
         
         return out_query
     else:
-        print "Searching Shodan...",
+        print "Searching Shodan . . .",
         try:
             verboseprint("submitting query to Shodan via webapi (\"",query,"\")")
             results = api.search(query)
         except Exception, e:
             print "Failed! (Error: %s)" % e
         
-        print "Success!"
+        print "Done"
         
         verboseprint("importing query results to XML tree")
         out_query = ET.SubElement(out_root,"query",{"query":query,"type":"api"})
@@ -102,14 +102,14 @@ def query(out_tree, query, local=False):
 
 def lookupHost(out_tree, ip):
     out_root = out_tree.getroot()
-    print "Looking up host on Shodan...",
+    print "Looking up host on Shodan . . .",
     try:
         verboseprint("sumitting host (",ip,") query to Shodan via webapi")
         host = api.host(ip)
     except Exception, e:
         print "Failed! (Error: %s)" % e
     
-    print "Success!"
+    print "Done"
     
     verboseprint("importing host info to XML tree")
     out_query = ET.SubElement(out_root,"host_query",{"query":ip})
@@ -137,14 +137,14 @@ def lookupHost(out_tree, ip):
 def findExploits(out_tree, query):
     #include other databses? (e.g. metasploit)
     out_root = out_tree.getroot()
-    print "Searching for exploits...",
+    print "Searching for exploits . . .",
     try:
         verboseprint("submitting exploit query to Shodan via webapi (\"",query,"\")")
         exploits = api.exploitdb.search(query)
     except Exception, e:
         print "Failed! (Error: %s)" % e
     
-    print "Success!"
+    print "Done"
     
     verboseprint("importing query results to XML tree")
     out_query = ET.SubElement(out_root,"exploit_query",{"query":query})
@@ -175,6 +175,7 @@ def formatFilename(fname):
 def fingerprint(out_query):
     out_query_hosts = out_query.find('./hosts')
     
+    print "Attempting to fingerprint host(s) . . .",
     for host in out_query_hosts:
         try:
             verboseprint("submitting fingerprint request to Shodan via webapi")
@@ -189,6 +190,7 @@ def fingerprint(out_query):
                 f = ET.Element("fingerprint",{"server_type":unicode(results["matches"][i][0]),
                                               "confidence":unicode(results["matches"][i][1])})
                 fingerprints.append(f)
+    print "Done"
 
 def enumServers(out_query):
     out_query_hosts = out_query.find('./hosts')
@@ -212,6 +214,7 @@ def enumServers(out_query):
     return out_servers
 
 def lookupServerExploits(out_servers):
+    print "Performing auto exploit lookup . . .",
     for server in out_servers:
         exploits = None
         try:
@@ -228,6 +231,7 @@ def lookupServerExploits(out_servers):
                     exploit[attrib] = unicode(value)
                 e = ET.Element("exploit",exploit)
                 server_exploits.append(e)
+    print "Done"
 
 def importXML(tree, out_tree):
     out_root = out_tree.getroot()
@@ -243,7 +247,7 @@ def importXML(tree, out_tree):
 
 def exportResults(tree, fname):
     tree.write(fname, xml_declaration=True)
-    print "Wrote output to \"",fname,"\" successfullly!"
+    print "Wrote output to \""+fname+"\" successfullly!"
 
 if __name__ == "__main__":
     signal.signal(signal.SIGINT, killme)
@@ -269,7 +273,7 @@ vulnerable devices.
     parser.add_argument("--xlookup", action="store_true", dest="xlookup", help = "attempt to find exploits on the types of devices found")
     parser.add_argument("-v", "--verbose", action="store_true", dest="verbose", help = "verbose mode")
     
-    #with '-k' and '-x', allow api query too and combine results?
+    #with '-k' and '-x', allow api query too and append results?
     
     group = parser.add_argument_group(title='Actions (mutually exclusive)')
     actions = group.add_mutually_exclusive_group(required=True)
