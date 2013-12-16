@@ -87,10 +87,11 @@ def query(out_tree, query, local=False):
             data.text = host["data"]
             del host["data"]
             for attrib,value in host.items():
+                #needed b/c limitation in ET serialization
                 if not value:
                     del host[attrib]
                 elif type(value) is list:
-                    host[attrib] = value[0] #needed b/c limitation in ET
+                    host[attrib] = value[0]
                 else:
                     host[attrib] = unicode(value)
             h = ET.Element("host",host)
@@ -110,23 +111,26 @@ def lookupHost(out_tree, ip):
     
     print "Success!"
     
-    verboseprint("""
-        IP: %s
-        Country: %s
-        City: %s
-    """ % (host["ip"], host.get("country", None), host.get("city", None)))
-
-    for item in host["data"]:
-        verboseprint("""
-                Port: %s
-                Banner: %s
-
-        """ % (item["port"], item["banner"]))
-    
     verboseprint("importing host info to XML tree")
     out_query = ET.SubElement(out_root,"host_query",{"query":ip})
     out_host = ET.SubElement(out_query,"hosts")
-    out_host.append(ET.Element("host",host))
+    #just taking most recent scan data
+    #(data format in scans changes over time)
+    index = len(host["data"])-1
+    data = ET.Element("data")
+    data.text = host["data"][index]["banner"]
+    del host["data"][index]["banner"]
+    for attrib,value in host["data"][index].items():
+        #needed b/c limitation in ET serialization
+        if not value:
+            del host["data"][index][attrib]
+        elif type(value) is list:
+            host["data"][index][attrib] = value[0] 
+        else:
+            host["data"][index][attrib] = unicode(value)
+    h = ET.Element("host",host["data"][index])
+    h.append(data)
+    out_host.append(h)
     
     return out_query
 
@@ -146,7 +150,16 @@ def findExploits(out_tree, query):
     out_query = ET.SubElement(out_root,"exploit_query",{"query":query})
     out_exploits = ET.SubElement(out_query,"exploits")
     for exploit in exploits["matches"]:
-        out_exploits.append(ET.Element("exploit",exploit))
+        for attrib,value in exploit.items():
+            #needed b/c limitation in ET serialization
+            if not value:
+                del exploit[attrib]
+            elif type(value) is list:
+                exploit[attrib] = value[0] 
+            else:
+                exploit[attrib] = unicode(value)
+        e = ET.Element("exploit",exploit)
+        out_exploits.append(e)
     
     return out_query
 
@@ -171,8 +184,11 @@ def fingerprint(out_query):
         
         if results["matches"]:
             fingerprints = ET.SubElement(host,"fingerprints")
-            for fingerprint in results["matches"]:
-                fingerprints.append(fingerprint[0])
+            num_results = min(len(results["matches"]),5)
+            for i in range(num_results):
+                f = ET.Element("fingerprint",{"server_type":unicode(results["matches"][i][0]),
+                                              "confidence":unicode(results["matches"][i][1])})
+                fingerprints.append(f)
 
 def enumServers(out_query):
     out_query_hosts = out_query.find('./hosts')
@@ -197,17 +213,21 @@ def enumServers(out_query):
 
 def lookupServerExploits(out_servers):
     for server in out_servers:
+        exploits = None
         try:
             verboseprint("submitting exploit query to Shodan via webapi (\"",query,"\")")
             exploits = api.exploitdb.search(server.get("name"))
         except Exception, e:
             print "Failed! (Error: %s)" % e
-        if exploits and not exploits["error"]:
+        if exploits and not exploits["error"] and exploits["total"] > 0:
             server_exploits = ET.SubElement(server,"exploits",{"query":exploits["query"],
-                                                               "source":exploits["source"],
-                                                               "total":exploits["total"]})
+                                                               "total":unicode(exploits["total"])})
             for exploit in exploits["matches"]:
-                server_exploits.append(exploit)
+                for attrib,value in exploit.items():
+                    #needed b/c limitation in ET serialization
+                    exploit[attrib] = unicode(value)
+                e = ET.Element("exploit",exploit)
+                server_exploits.append(e)
 
 def importXML(tree, out_tree):
     out_root = out_tree.getroot()
@@ -217,7 +237,8 @@ def importXML(tree, out_tree):
     out_hosts = ET.SubElement(out_query,"hosts")
     
     for i in xrange(1,len(root)):
-        out_hosts.append(ET.Element("host",root[i]))
+        h = ET.Element("host",root[i])
+        out_hosts.append(h)
     verboseprint("imported xml file successfully")
 
 def exportResults(tree, fname):
@@ -306,6 +327,9 @@ vulnerable devices.
             out_server_exploits = lookupServerExploits(out_servers)
     if args.host:
         out_query = lookupHost(out_tree, args.host)
+        out_servers = enumServers(out_query)
+        if args.xlookup:
+            out_server_exploits = lookupServerExploits(out_servers)
         if args.fingerprint:
             fingerprint(out_query)
     if args.exploit:
