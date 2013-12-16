@@ -1,6 +1,7 @@
 import os
 import re
 import signal
+import string
 import argparse
 from shodan import WebAPI
 import xml.etree.ElementTree as ET
@@ -26,6 +27,8 @@ def killme(signum = 0, frame = 0):
 
 #TODO:Check if xml elements already exist (for possible future upgrades)
 def query(out_tree, query, local=False):
+    out_root = out_tree.getroot()
+    
     if local:
         verboseprint("performing a local query (\"",query,"\")")
         
@@ -56,79 +59,107 @@ def query(out_tree, query, local=False):
             phrases.append(word)
         
         out_imported_query_hosts = out_tree.find("./imported_query/hosts")
-        out_query = ET.SubElement(out_tree,"query",{"query":query,"type":"local"})
+        out_query = ET.SubElement(out_root,"query",{"query":query,"type":"local"})
         out_hosts = ET.SubElement(out_query,"hosts")
         
         for host in out_imported_query_hosts:
             attributes = list(key+"=\""+value+"\"" for (key,value) in host.attrib.items())
             if any(word in attributes for word in filter):
                 if any(phrase in host[0].text for phrase in phrases):
-                    out_hosts.append(ET.Element("host",host))
+                    out_hosts.append(host)
         
         return out_query
     else:
-        print "Searching Shodan...",
+        print "Searching Shodan . . .",
         try:
             verboseprint("submitting query to Shodan via webapi (\"",query,"\")")
             results = api.search(query)
         except Exception, e:
             print "Failed! (Error: %s)" % e
         
-        print "Success!"
+        print "Done"
         
         verboseprint("importing query results to XML tree")
-        out_query = ET.SubElement(out_tree,"query",{"query":query,"type":"api"})
-        out_hosts = ET.SubElement(out_query,"hosts")#retain metdata to attrib?
+        out_query = ET.SubElement(out_root,"query",{"query":query,"type":"api"})
+        out_hosts = ET.SubElement(out_query,"hosts")#retain query metdata to attrib?
         for host in results["matches"]:
-            out_hosts.append(ET.Element("host",host))
+            data = ET.Element("data")
+            data.text = host["data"]
+            del host["data"]
+            for attrib,value in host.items():
+                #needed b/c limitation in ET serialization
+                if not value:
+                    del host[attrib]
+                elif type(value) is list:
+                    host[attrib] = value[0]
+                else:
+                    host[attrib] = unicode(value)
+            h = ET.Element("host",host)
+            h.append(data)
+            out_hosts.append(h)
         
         return out_query
 
 def lookupHost(out_tree, ip):
-    print "Looking up host on Shodan...",
+    out_root = out_tree.getroot()
+    print "Looking up host on Shodan . . .",
     try:
         verboseprint("sumitting host (",ip,") query to Shodan via webapi")
         host = api.host(ip)
     except Exception, e:
         print "Failed! (Error: %s)" % e
     
-    print "Success!"
-    
-    verboseprint("""
-        IP: %s
-        Country: %s
-        City: %s
-    """ % (host["ip"], host.get("country", None), host.get("city", None)))
-
-    for item in host["data"]:
-        verboseprint("""
-                Port: %s
-                Banner: %s
-
-        """ % (item["port"], item["banner"]))
+    print "Done"
     
     verboseprint("importing host info to XML tree")
-    out_query = ET.SubElement(out_tree,"host_query",{"query":ip})
+    out_query = ET.SubElement(out_root,"host_query",{"query":ip})
     out_host = ET.SubElement(out_query,"hosts")
-    out_host.append(ET.Element("host",host))
+    #just taking most recent scan data
+    #(data format in scans changes over time)
+    index = len(host["data"])-1
+    data = ET.Element("data")
+    data.text = host["data"][index]["banner"]
+    del host["data"][index]["banner"]
+    for attrib,value in host["data"][index].items():
+        #needed b/c limitation in ET serialization
+        if not value:
+            del host["data"][index][attrib]
+        elif type(value) is list:
+            host["data"][index][attrib] = value[0] 
+        else:
+            host["data"][index][attrib] = unicode(value)
+    h = ET.Element("host",host["data"][index])
+    h.append(data)
+    out_host.append(h)
     
     return out_query
 
 def findExploits(out_tree, query):
-    print "Searching for exploits...",
+    #include other databses? (e.g. metasploit)
+    out_root = out_tree.getroot()
+    print "Searching for exploits . . .",
     try:
         verboseprint("submitting exploit query to Shodan via webapi (\"",query,"\")")
         exploits = api.exploitdb.search(query)
     except Exception, e:
         print "Failed! (Error: %s)" % e
     
-    print "Success!"
+    print "Done"
     
     verboseprint("importing query results to XML tree")
-    out_query = ET.SubElement(out_tree,"exploit_query",{"query":query})
+    out_query = ET.SubElement(out_root,"exploit_query",{"query":query})
     out_exploits = ET.SubElement(out_query,"exploits")
     for exploit in exploits["matches"]:
-        out_exploits.append(ET.Element("exploit",exploit))
+        for attrib,value in exploit.items():
+            #needed b/c limitation in ET serialization
+            if not value:
+                del exploit[attrib]
+            elif type(value) is list:
+                exploit[attrib] = value[0] 
+            else:
+                exploit[attrib] = unicode(value)
+        e = ET.Element("exploit",exploit)
+        out_exploits.append(e)
     
     return out_query
 
@@ -144,6 +175,7 @@ def formatFilename(fname):
 def fingerprint(out_query):
     out_query_hosts = out_query.find('./hosts')
     
+    print "Attempting to fingerprint host(s) . . .",
     for host in out_query_hosts:
         try:
             verboseprint("submitting fingerprint request to Shodan via webapi")
@@ -153,8 +185,12 @@ def fingerprint(out_query):
         
         if results["matches"]:
             fingerprints = ET.SubElement(host,"fingerprints")
-            for fingerprint in results["matches"]:
-                fingerprints.append("fingerprint",fingerprint[0])
+            num_results = min(len(results["matches"]),5)
+            for i in range(num_results):
+                f = ET.Element("fingerprint",{"server_type":unicode(results["matches"][i][0]),
+                                              "confidence":unicode(results["matches"][i][1])})
+                fingerprints.append(f)
+    print "Done"
 
 def enumServers(out_query):
     out_query_hosts = out_query.find('./hosts')
@@ -164,44 +200,54 @@ def enumServers(out_query):
     for host in out_query_hosts:
         match = regex_server.search(host[0].text)
         if match:
-            serverSummary[match.group(1)].append(host)
+            m = match.group(1).strip()
+            if m:
+                serverSummary[m].append(host)
     
     out_servers = ET.SubElement(out_query,"servers")
     for server_type, hosts in serverSummary.iteritems():
         server = ET.SubElement(out_servers,"server_type",{"name":server_type})
         server_hosts = ET.SubElement(server,"hosts")
         for host in hosts:
-            server_hosts.append("host",host)
+            server_hosts.append(host)
     
     return out_servers
 
 def lookupServerExploits(out_servers):
+    print "Performing auto exploit lookup . . .",
     for server in out_servers:
+        exploits = None
         try:
             verboseprint("submitting exploit query to Shodan via webapi (\"",query,"\")")
             exploits = api.exploitdb.search(server.get("name"))
         except Exception, e:
             print "Failed! (Error: %s)" % e
-        if exploits and not exploits["error"]:
+        if exploits and not exploits["error"] and exploits["total"] > 0:
             server_exploits = ET.SubElement(server,"exploits",{"query":exploits["query"],
-                                                               "source":exploits["source"],
-                                                               "total":exploits["total"]})
+                                                               "total":unicode(exploits["total"])})
             for exploit in exploits["matches"]:
-                server_exploits.append("exploit",exploit)
+                for attrib,value in exploit.items():
+                    #needed b/c limitation in ET serialization
+                    exploit[attrib] = unicode(value)
+                e = ET.Element("exploit",exploit)
+                server_exploits.append(e)
+    print "Done"
 
 def importXML(tree, out_tree):
+    out_root = out_tree.getroot()
     verboseprint("importing xml file")
     root = tree.getroot()
-    out_query = ET.SubElement(out_tree,"imported_query",root[0].attrib)
+    out_query = ET.SubElement(out_root,"imported_query",root[0].attrib)
     out_hosts = ET.SubElement(out_query,"hosts")
     
     for i in xrange(1,len(root)):
-        out_hosts.append(ET.Element("host",root[i]))
+        h = ET.Element("host",root[i])
+        out_hosts.append(h)
     verboseprint("imported xml file successfully")
 
 def exportResults(tree, fname):
     tree.write(fname, xml_declaration=True)
-    print "Wrote output to \"",fname,"\" successfullly!"
+    print "Wrote output to \""+fname+"\" successfullly!"
 
 if __name__ == "__main__":
     signal.signal(signal.SIGINT, killme)
@@ -221,20 +267,20 @@ vulnerable devices.
     #there has to be a better way to format this ^
     #this is why i'm not a web developer
     parser.add_argument("-k", "--key", dest = "api_key", metavar="KEY", help = "Shodan API Key.")
-    parser.add_argument("-o", "--output", dest = "ofname", type = argparse.FileType('w'), metavar="FILE", help = "write output to FILE", required = True)
+    parser.add_argument("-o", "--output", dest = "ofname", metavar="FILE", help = "write output to FILE", required = True)
     parser.add_argument("-x", "--xml", dest = "xml_file", type = argparse.FileType('r'), metavar="FILE", help = "name of XML file to import and perform operations on locally")
     parser.add_argument("--fingerprint", action="store_true", dest="fingerprint", help = "(experimental) attempt to fingerprint devices based on their banner's")
     parser.add_argument("--xlookup", action="store_true", dest="xlookup", help = "attempt to find exploits on the types of devices found")
     parser.add_argument("-v", "--verbose", action="store_true", dest="verbose", help = "verbose mode")
     
-    #with '-k' and '-x', allow api query too and combine results?
+    #with '-k' and '-x', allow api query too and append results?
     
     group = parser.add_argument_group(title='Actions (mutually exclusive)')
     actions = group.add_mutually_exclusive_group(required=True)
     actions.add_argument("-q", "--query", dest = "query", metavar="STRING", help = "string used to query Shodan")
     actions.add_argument("--host", dest = "host", metavar="IP", help = "ip of host to lookup")
     actions.add_argument("-e", "--exploit", dest = "exploit", metavar="STRING", help = "string used to query for exploits")
-    
+    actions.add_argument("-f", "--file", dest = "in_file", type = argparse.FileType('r'), metavar="FILE", help = "file name of query list")
     #TODO:Maybe a merge XMLs feature?
 
     args = parser.parse_args()
@@ -248,7 +294,7 @@ vulnerable devices.
     else:
         verboseprint = lambda *a: None
     
-    if not (args.query or args.host or args.exploit):
+    if not (args.query or args.host or args.exploit or args.in_file):
         parser.error("Not enough arguements given.")
     
     if (args.host or args.exploit) and (not args.api_key or args.xml_file):
@@ -285,10 +331,17 @@ vulnerable devices.
             out_server_exploits = lookupServerExploits(out_servers)
     if args.host:
         out_query = lookupHost(out_tree, args.host)
+        out_servers = enumServers(out_query)
+        if args.xlookup:
+            out_server_exploits = lookupServerExploits(out_servers)
         if args.fingerprint:
             fingerprint(out_query)
     if args.exploit:
         out_query = findExploits(out_tree, args.exploit)
+    if args.in_file:
+        for line in args.in_file:
+            query(out_tree, line)
+        
     
     fname = formatFilename(args.ofname)
     exportResults(out_tree,fname)

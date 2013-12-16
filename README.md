@@ -5,7 +5,7 @@ This is why I'm not a web developer
 ####NAME
 
 &nbsp;&nbsp;&nbsp;&nbsp;pydan - tool to interface with Shodan API</dd>
-
+                        
 ----
 
 ####SYNOPSIS
@@ -51,6 +51,9 @@ This is why I'm not a web developer
 <dl>
     <dt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-q STRING, --query STRING</dt>
     <dd>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;String used to query Shodan. This is the same as what you would type into the search bar on Shodan's web interface.</dd>
+    
+    <dt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-f File Name, --file File Name</dt>
+    <dd>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;File name of list of queries to run</dd>
     
     <dt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--host IP</dt>
     <dd>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IP of single host to lookup. This will check if Shodan has scanned this IP before, and (if so) it will retrieve all the information Shodan had for it.</dd>
