@@ -1,6 +1,7 @@
 import os
 import re
 import signal
+import string
 import argparse
 from shodan import WebAPI
 import xml.etree.ElementTree as ET
@@ -26,6 +27,8 @@ def killme(signum = 0, frame = 0):
 
 #TODO:Check if xml elements already exist (for possible future upgrades)
 def query(out_tree, query, local=False):
+    out_root = out_tree.getroot()
+    
     if local:
         verboseprint("performing a local query (\"",query,"\")")
         
@@ -56,7 +59,7 @@ def query(out_tree, query, local=False):
             phrases.append(word)
         
         out_imported_query_hosts = out_tree.find("./imported_query/hosts")
-        out_query = ET.SubElement(out_tree,"query",{"query":query,"type":"local"})
+        out_query = ET.SubElement(out_root,"query",{"query":query,"type":"local"})
         out_hosts = ET.SubElement(out_query,"hosts")
         
         for host in out_imported_query_hosts:
@@ -77,7 +80,7 @@ def query(out_tree, query, local=False):
         print "Success!"
         
         verboseprint("importing query results to XML tree")
-        out_query = ET.SubElement(out_tree,"query",{"query":query,"type":"api"})
+        out_query = ET.SubElement(out_root,"query",{"query":query,"type":"api"})
         out_hosts = ET.SubElement(out_query,"hosts")#retain metdata to attrib?
         for host in results["matches"]:
             out_hosts.append(ET.Element("host",host))
@@ -85,6 +88,7 @@ def query(out_tree, query, local=False):
         return out_query
 
 def lookupHost(out_tree, ip):
+    out_root = out_tree.getroot()
     print "Looking up host on Shodan...",
     try:
         verboseprint("sumitting host (",ip,") query to Shodan via webapi")
@@ -108,13 +112,15 @@ def lookupHost(out_tree, ip):
         """ % (item["port"], item["banner"]))
     
     verboseprint("importing host info to XML tree")
-    out_query = ET.SubElement(out_tree,"host_query",{"query":ip})
+    out_query = ET.SubElement(out_root,"host_query",{"query":ip})
     out_host = ET.SubElement(out_query,"hosts")
     out_host.append(ET.Element("host",host))
     
     return out_query
 
 def findExploits(out_tree, query):
+    #include other databses? (e.g. metasploit)
+    out_root = out_tree.getroot()
     print "Searching for exploits...",
     try:
         verboseprint("submitting exploit query to Shodan via webapi (\"",query,"\")")
@@ -125,7 +131,7 @@ def findExploits(out_tree, query):
     print "Success!"
     
     verboseprint("importing query results to XML tree")
-    out_query = ET.SubElement(out_tree,"exploit_query",{"query":query})
+    out_query = ET.SubElement(out_root,"exploit_query",{"query":query})
     out_exploits = ET.SubElement(out_query,"exploits")
     for exploit in exploits["matches"]:
         out_exploits.append(ET.Element("exploit",exploit))
@@ -154,7 +160,7 @@ def fingerprint(out_query):
         if results["matches"]:
             fingerprints = ET.SubElement(host,"fingerprints")
             for fingerprint in results["matches"]:
-                fingerprints.append("fingerprint",fingerprint[0])
+                fingerprints.append(fingerprint[0])
 
 def enumServers(out_query):
     out_query_hosts = out_query.find('./hosts')
@@ -162,7 +168,7 @@ def enumServers(out_query):
     serverSummary = defaultdict(list)
     
     for host in out_query_hosts:
-        match = regex_server.search(host[0].text)
+        match = regex_server.search(host.get("data"))
         if match:
             serverSummary[match.group(1)].append(host)
     
@@ -171,7 +177,7 @@ def enumServers(out_query):
         server = ET.SubElement(out_servers,"server_type",{"name":server_type})
         server_hosts = ET.SubElement(server,"hosts")
         for host in hosts:
-            server_hosts.append("host",host)
+            server_hosts.append(host)
     
     return out_servers
 
@@ -187,12 +193,13 @@ def lookupServerExploits(out_servers):
                                                                "source":exploits["source"],
                                                                "total":exploits["total"]})
             for exploit in exploits["matches"]:
-                server_exploits.append("exploit",exploit)
+                server_exploits.append(exploit)
 
 def importXML(tree, out_tree):
+    out_root = out_tree.getroot()
     verboseprint("importing xml file")
     root = tree.getroot()
-    out_query = ET.SubElement(out_tree,"imported_query",root[0].attrib)
+    out_query = ET.SubElement(out_root,"imported_query",root[0].attrib)
     out_hosts = ET.SubElement(out_query,"hosts")
     
     for i in xrange(1,len(root)):
@@ -290,5 +297,5 @@ vulnerable devices.
     if args.exploit:
         out_query = findExploits(out_tree, args.exploit)
     
-    fname = formatFilename(args.ofname)
+    fname = formatFilename(args.ofname.name)
     exportResults(out_tree,fname)
