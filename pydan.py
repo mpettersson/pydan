@@ -255,7 +255,7 @@ vulnerable devices.
     actions.add_argument("-q", "--query", dest = "query", metavar="STRING", help = "string used to query Shodan")
     actions.add_argument("--host", dest = "host", metavar="IP", help = "ip of host to lookup")
     actions.add_argument("-e", "--exploit", dest = "exploit", metavar="STRING", help = "string used to query for exploits")
-    
+    actions.add_argument("-f", "--file", dest = "in_file", type = argparse.FileType('r'), metavar="FILE", help = "file name of query list")
     #TODO:Maybe a merge XMLs feature?
 
     args = parser.parse_args()
@@ -269,7 +269,7 @@ vulnerable devices.
     else:
         verboseprint = lambda *a: None
     
-    if not (args.query or args.host or args.exploit):
+    if not (args.query or args.host or args.exploit or args.in_file):
         parser.error("Not enough arguements given.")
     
     if (args.host or args.exploit) and (not args.api_key or args.xml_file):
@@ -310,6 +310,10 @@ vulnerable devices.
             fingerprint(out_query)
     if args.exploit:
         out_query = findExploits(out_tree, args.exploit)
+    if args.in_file:
+        for line in args.in_file:
+            query(out_tree, line)
+        
     
     fname = formatFilename(args.ofname)
     exportResults(out_tree,fname)
