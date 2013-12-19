@@ -82,5 +82,17 @@ Then run:
 
 ```python pydan.py @webcam.conf```
 
+It is also possible to combine the previous two examples; that is, the API key is in a configuration file (which can be ignored in your gitignore file) and the options are manually entered.  The following will produce the same results as the two examples above: 
+
+apikey.conf:
+```
+-k 123FAKEKEY
+```
+
+Then, this time, use:
+
+```python pydan.py @apikey.conf -q webcam -o results.xml```
+
+
 
 [Shodan Python API]: https://github.com/achillean/shodan-python
