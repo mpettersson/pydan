@@ -1,0 +1,46 @@
+
+NOTE - THIS IS A README THAT I STARTED ON A DIFFERENT BRANCH BEFORE THE ONE UPSTREAM WAS POPULATED.  IF THIS TAKES OFF I'LL GO THROUGH IT AND ADD A COMPREHENSIVE SET OF INSTRUCTOINS AND EXAMPLES, UNTIL THEN, I DON'T WANT TO DELETE MY NIFTY ASCII ART...   
+                      _               
+                     | |              
+    _ __   _   _   __| |  __ _  _ __  
+   | '_ \ | | | | / _` | / _` || '_ \ 
+   | |_) || |_| || (_| || (_| || | | |
+   | .__/  \__, | \__,_| \__,_||_| |_|
+   | |      __/ |                     
+   |_|     |___/                      
+
+https://github.com/mpettersson/pydan.git
+
+## Overview
+
+ ** Purpose: **
+
+ ** Contributers: **
+
+
+## Getting Started
+
+ ** Prerequisites **
+
+  - [Shodan API Key] (http://www.shodanhq.com/api_doc)
+
+  - Installed Shodan API, see next section.
+
+  - 
+
+
+ ** Installation **
+
+  - Shodan API (https://pypi.python.org/pypi/shodan/0.8.1) via cheeseshop command: 
+
+    ```python
+      easy_install shodan  
+    ```
+
+  - Clone pyden:
+    ```
+      (https://github.com/HebrewzHammer/pydan.git) 
+    ```
+
+## pyden Usage
+
