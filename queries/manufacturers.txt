@@ -1,0 +1,65 @@
+Allied Telesis	
+Delta Controls	
+LOGPAC	
+National Instruments	
+VxWorks
+Alcea	
+Digi	
+Itron, Inc.	
+OMRON	
+Wago
+ABB	
+Ecessa	
+Koyo	
+openSCADA	
+WindWeb
+ADCON	
+Ericsson	
+KMC	
+Ourman	
+Wonderware
+APC	
+Emerson	
+Komatsu	
+Phoenix Contact	 
+Allen-Bradley	
+EIG	
+Lennox	
+Phillips	 
+AKCP	
+EnergyICT	
+Leica	
+mGuard	 
+Barik	
+Falcon	
+Lancom	
+Schneider Electric	 
+Caterpillar Inc.	
+Force10	
+Lantronix	
+Siemens	 
+Cimetrics	
+Funkwerk	
+Moxa	
+RUGGEDCOM	 
+CIMON	
+GE	
+LonWorks	
+Rockwell Automation	 
+Control4	
+Genohm	
+LG	
+Powertech	 
+CODESYS	
+Hirschmann	
+Mitsubitshi	
+STULZ	 
+Clorius 
+Controls	
+Honeywell	
+Motorola	
+SoftPLC	 
+Datawatt	
+Liebherr	
+Niagara	
+Telemecanique	 
